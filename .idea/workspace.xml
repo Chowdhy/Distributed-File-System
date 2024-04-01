@@ -1,18 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="" />
+    <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="Initial upload">
+      <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/DstoreInfo.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/FileInfo.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Protocol.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Enum" />
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
   <component name="ProjectId" id="2dXw2rbkOYjNGQkQeubdfJFZmGE" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
@@ -21,13 +41,77 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Application.Controller.executor": "Run",
+    "Application.Dstore (1).executor": "Run",
+    "Application.Dstore (2).executor": "Run",
+    "Application.Dstore.executor": "Run",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "kotlin-language-version-configured": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src" />
+    </key>
+    <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Application.Dstore">
+    <configuration name="Controller" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="Controller" />
+      <module name="COMP2207-Coursework" />
+      <option name="PROGRAM_PARAMETERS" value="12345 2 1000 1000" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Dstore (1)" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="Dstore" />
+      <module name="COMP2207-Coursework" />
+      <option name="PROGRAM_PARAMETERS" value="420 12345 1000 &quot;dstore_2&quot;" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Dstore (2)" type="Application" factoryName="Application">
+      <option name="MAIN_CLASS_NAME" value="Dstore" />
+      <module name="COMP2207-Coursework" />
+      <option name="PROGRAM_PARAMETERS" value="42069 12345 1000 &quot;dstore_3&quot;" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Dstore" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="Dstore" />
+      <module name="COMP2207-Coursework" />
+      <option name="PROGRAM_PARAMETERS" value="6969 12345 1000 &quot;dstore_1&quot;" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <list>
+      <item itemvalue="Application.Dstore (2)" />
+      <item itemvalue="Application.Controller" />
+      <item itemvalue="Application.Dstore" />
+      <item itemvalue="Application.Dstore (1)" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Application.Dstore" />
+        <item itemvalue="Application.Controller" />
+        <item itemvalue="Application.Dstore (1)" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -43,7 +127,38 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1710167526234</updated>
+      <workItem from="1710167527249" duration="1132000" />
+      <workItem from="1710178237043" duration="16000" />
+      <workItem from="1710357239483" duration="21000" />
+      <workItem from="1711585727874" duration="55012000" />
     </task>
+    <task id="LOCAL-00001" summary="Initial upload">
+      <option name="closed" value="true" />
+      <created>1710167595389</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1710167595389</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Initial upload" />
+    <option name="LAST_COMMIT_MESSAGE" value="Initial upload" />
   </component>
 </project>
