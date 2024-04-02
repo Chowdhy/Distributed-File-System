@@ -1,7 +1,5 @@
 import java.io.*;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
 import java.util.Arrays;
 
 public class Dstore {
@@ -39,9 +37,9 @@ public class Dstore {
         this.timeout = timeout;
         this.fileFolder = new File(fileFolder);
 
-        this.fileFolder.mkdir();
-
-        clearFolder(this.fileFolder);
+        if (!this.fileFolder.mkdir()) {
+            clearFolder(this.fileFolder);
+        }
 
         Socket controllerSocket;
 
@@ -51,6 +49,7 @@ public class Dstore {
             PrintWriter localControllerWriter = new PrintWriter(controllerSocket.getOutputStream(), true);
 
             serverSocket = new ServerSocket(port);
+            log("Dstore server started on port " + port);
 
             localControllerWriter.println(Protocol.JOIN_TOKEN + " " + port);
             log("Sent join request to " + cport);
@@ -74,6 +73,14 @@ public class Dstore {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+            if (serverSocket != null) {
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    error(e.toString());
+                }
+            }
         }
     }
 
@@ -205,17 +212,17 @@ public class Dstore {
     }
 
     class ServiceThread implements Runnable {
-        Socket client;
-        ServiceThread(Socket c) {
-            client=c;
+        Socket socket;
+        ServiceThread(Socket s) {
+            socket = s;
         }
         public void run() {
             try {
-                BufferedReader textReader = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                PrintWriter textWriter = new PrintWriter(client.getOutputStream(), true);
+                BufferedReader textReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter textWriter = new PrintWriter(socket.getOutputStream(), true);
 
-                InputStream dataReader = client.getInputStream();
-                OutputStream dataWriter = client.getOutputStream();
+                InputStream dataReader = socket.getInputStream();
+                OutputStream dataWriter = socket.getOutputStream();
 
                 String line;
                 while ((line = textReader.readLine()) != null) {
@@ -249,8 +256,14 @@ public class Dstore {
                             textWriter.println(Protocol.ACK_TOKEN);
                             saveFile(cmd[1], dataReader.readNBytes(Integer.parseInt(cmd[2])));
                             break;
+
+                        case "CHECK":
+                            textWriter.println(Protocol.ACK_TOKEN);
+                            log("SENT ACK");
+                            break;
                     }
                 }
+                socket.close();
             } catch(Exception e) {
                 error(e.toString());
             }

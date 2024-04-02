@@ -1,16 +1,20 @@
 import java.net.*;
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Controller {
     private ServerSocket serverSocket;
-    private final Map<String, FileInfo> fileIndex = new HashMap<>();
+    private final Map<String, FileInfo> fileIndex;
     private final int replicationFactor;
     private final int timeout;
-    private final List<Integer> previousPorts = new ArrayList<>();
+    private final List<Integer> previousPorts;
     private final int rebalancePeriod;
-    private final Map<Integer, DstoreInfo> dstorePorts = new HashMap<>();
+    private final Map<Integer, DstoreInfo> dstorePorts;
     
     private void log(String message) {
         System.out.println("[CONTROLLER] " + message);
@@ -25,8 +29,17 @@ public class Controller {
         this.timeout = timeout;
         this.rebalancePeriod = rebalancePeriod;
 
+        fileIndex = new HashMap<>();
+        previousPorts = new ArrayList<>();
+        dstorePorts = new HashMap<>();
+
         try {
             serverSocket = new ServerSocket(cport);
+            log("Controller server started on port " + cport);
+
+            ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+            executorService.scheduleWithFixedDelay(this::rebalance, rebalancePeriod, rebalancePeriod, TimeUnit.MILLISECONDS);
+
             while (true) {
                 try {
                     Socket socket = serverSocket.accept();
@@ -58,31 +71,43 @@ public class Controller {
         log("Dstore (" + port + ") TCP message sent: " + message);
     }
 
+    private String listenToDstoreMessage(int port) throws SocketTimeoutException {
+        try {
+            dstorePorts.get(port).getSocket().setSoTimeout(timeout);
+
+            String message = dstorePorts.get(port).getReader().readLine();
+            if (message == null) throw new SocketTimeoutException();
+
+            log("Dstore (" + port + ") TCP message received: " + message);
+            return message;
+        } catch (SocketTimeoutException e) {
+            throw new SocketTimeoutException();
+        } catch (IOException e) {
+            throw new SocketTimeoutException();
+        }
+    }
+
     private void join(int port) {
         try {
             InetAddress address = InetAddress.getLocalHost();
             Socket socket = new Socket(address, port);
+            log("Connection established on port " + port);
 
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            DstoreInfo info = new DstoreInfo(port, out, in);
+            DstoreInfo info = new DstoreInfo(port, socket, out, in);
             dstorePorts.put(port, info);
-
-            String line;
-            while((line = in.readLine()) != null) {
-                info.fire(line);
-                log("Dstore (" + port + ") TCP message received: " + line);
-            }
-            //socket.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        rebalance();
     }
 
     private List<Integer> selectRDstores() {
         DstoreInfo[] dstores = dstorePorts.values().toArray(new DstoreInfo[0]);
-        Arrays.sort(dstores, Comparator.comparingInt(DstoreInfo::getFileCount));
+        Arrays.sort(dstores);
 
         List<Integer> selected = new ArrayList<>();
 
@@ -120,20 +145,29 @@ public class Controller {
 
         fileIndex.put(fileName, new FileInfo(fileSize, usedPorts));
 
+
+
         for (var port : usedPorts) {
             usedPortString.append(" ").append(port);
             DstoreInfo info = dstorePorts.get(port);
-            info.setOnMessageReceived(message -> {
-                if (message.equals(Protocol.STORE_ACK_TOKEN + " " + fileName)) {
-                    info.setFileCount(info.getFileCount() + 1);
-                    inc.getAndIncrement();
-                }
 
-                if (inc.get() == replicationFactor) {
-                    fileIndex.get(fileName).setStatus(FileInfo.Status.STORE_COMPLETE);
-                    sendClientMessage(out, Protocol.STORE_COMPLETE_TOKEN);
+            new Thread(() -> {
+                try {
+                    String message = listenToDstoreMessage(port);
+
+                    if (message.equals(Protocol.STORE_ACK_TOKEN + " " + fileName)) {
+                        info.setFileCount(info.getFileCount() + 1);
+                        inc.getAndIncrement();
+                    }
+
+                    if (inc.get() == replicationFactor) {
+                        fileIndex.get(fileName).setStatus(FileInfo.Status.STORE_COMPLETE);
+                        sendClientMessage(out, Protocol.STORE_COMPLETE_TOKEN);
+                    }
+                } catch (SocketTimeoutException e) {
+                    log("Request timed out");
                 }
-            });
+            }).start();
         }
 
         sendClientMessage(out, Protocol.STORE_TO_TOKEN + usedPortString);
@@ -143,22 +177,6 @@ public class Controller {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
-
-        Timer timer = new Timer();
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                for (int port : usedPorts) {
-                    dstorePorts.get(port).removeListener();
-                }
-
-                if (inc.get() != replicationFactor) {
-                    fileIndex.remove(fileName);
-                }
-            }
-        };
-
-        timer.schedule(task, timeout);
     }
 
     private void load(PrintWriter out, String fileName) {
@@ -195,7 +213,9 @@ public class Controller {
         for (int port : ports) {
             sendDstoreMessage(port, Protocol.REMOVE_TOKEN + " " + fileName);
 
-            dstorePorts.get(port).setOnMessageReceived(message -> {
+            try {
+                String message = listenToDstoreMessage(port);
+
                 if (message.equals(Protocol.REMOVE_ACK_TOKEN + " " + fileName) || message.equals(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName)) {
                     inc.getAndIncrement();
 
@@ -204,20 +224,10 @@ public class Controller {
                         sendClientMessage(out, Protocol.REMOVE_COMPLETE_TOKEN);
                     }
                 }
-            });
-        }
+            } catch (SocketTimeoutException e) {
 
-        Timer timer = new Timer();
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                for (int port : ports) {
-                    dstorePorts.get(port).removeListener();
-                }
             }
-        };
-
-        timer.schedule(task, timeout);
+        }
     }
 
     private void list(PrintWriter out) {
@@ -231,11 +241,14 @@ public class Controller {
     }
 
     private void checkAliveStores() {
+        List<Integer> storesToRemove = new ArrayList<>();
         for (int port : dstorePorts.keySet()) {
             try {
                 sendDstoreMessage(port, "CHECK");
-            } catch (Exception e) {
-                dstorePorts.remove(port);
+                listenToDstoreMessage(port);
+            } catch (SocketTimeoutException e) {
+                log("GONE");
+                storesToRemove.add(port);
                 for (var info : fileIndex.values()) {
                     if (info.getDstorePorts().contains(port)) {
                         info.getDstorePorts().remove(port);
@@ -243,21 +256,58 @@ public class Controller {
                 }
             }
         }
+
+        for (int port : storesToRemove) {
+            dstorePorts.remove(port);
+        }
     }
 
-    private Map<String, Integer> getUnbalancedFiles() {
-        Map<String, Integer> unbalanced = new HashMap<>();
-        for (Map.Entry<String, FileInfo> entry : fileIndex.entrySet()) {
-            int count = entry.getValue().getDstorePorts().size();
-            if (count < replicationFactor) {
-                unbalanced.put(entry.getKey(), replicationFactor - count);
-            }
+    private Integer getUnbalancedPort(int minimum, int maximum, Map<Integer, List<String>> ports) {
+        for (var entry : ports.entrySet()) {
+            int port = entry.getKey();
+            int fileCount = entry.getValue().size();
+
+            System.out.println("count: " + fileCount);
+            System.out.println("min: " + minimum);
+            System.out.println("max: " + maximum);
+
+            if (fileCount < minimum || fileCount > maximum) return port;
         }
-        return unbalanced;
+
+        return null;
     }
+
+    boolean rebalancing = false;
 
     private void rebalance() {
-        Map<String, Integer> filesStored = new HashMap<>();
+        log("Rebalance requested");
+
+        if (rebalancing) {
+            log("Rebalance already in progress");
+            return;
+        } else {
+            log("Rebalance started");
+            rebalancing = true;
+        }
+
+        while (true) {
+            boolean processed = true;
+
+            for (String fileName : fileIndex.keySet()) {
+                if (storeInProgress(fileName) || removeInProgress(fileName)) {
+                    processed = false;
+                    break;
+                }
+            }
+
+            if (processed) break;
+        }
+
+        checkAliveStores();
+
+        Map<String, List<Integer>> filesStored = new HashMap<>();
+
+        List<Integer> ports = new ArrayList<>();
 
         int N = dstorePorts.size();
         int R = replicationFactor;
@@ -267,81 +317,200 @@ public class Controller {
         int minimum = (int) Math.floor(threshold);
         int maximum = (int) Math.ceil(threshold);
 
-        Map<Integer, String[]> currents = new HashMap<>();
-        Map<Integer, List<String>> overs = new HashMap<>();
-        Map<Integer, Integer> unders = new HashMap<>();
+        Map<Integer, List<String>> currents = new HashMap<>();
 
-        int oversum = 0;
-        AtomicInteger undersum = new AtomicInteger();
+        Map<Integer, Map<String, List<Integer>>> sends = new HashMap<>();
+        Map<Integer, List<String>> removals = new HashMap<>();
 
         dstorePorts.forEach((port, info) -> {
-            DstoreInfo.DstoreListener listener = message -> {
+            ports.add(port);
+            sendDstoreMessage(port, Protocol.LIST_TOKEN);
+            try {
+                String message = listenToDstoreMessage(port);
+
                 String[] args = message.split(" ");
                 if (args[0].equals(Protocol.LIST_TOKEN)) {
-                    String[] fileNames = Arrays.copyOfRange(args, 1, args.length);
+                    sends.put(port, new HashMap<>());
+                    removals.put(port, new ArrayList<>());
+
+                    List<String> fileNames = List.of(Arrays.copyOfRange(args, 1, args.length));
                     currents.put(port, fileNames);
                     for (var fileName : fileNames) {
-                        if (!filesStored.containsKey(fileName)) {
-                            filesStored.put(fileName, 1);
-                        } else {
-                            filesStored.put(fileName, filesStored.get(fileName) + 1);
-                        }
+                        if (!filesStored.containsKey(fileName)) filesStored.put(fileName, new ArrayList<>());
+                        filesStored.get(fileName).add(port);
                     }
                 }
-            };
-            info.setOnMessageReceived(listener);
+            } catch (SocketTimeoutException e) {
+
+            }
         });
 
         Map<String, Integer> unbalancedFiles = new HashMap<>();
 
-        filesStored.forEach((fileName, count) -> {
+        filesStored.forEach((fileName, storedPorts) -> {
+            int count = storedPorts.size();
+
             if (count < replicationFactor) {
-                unbalancedFiles.put(fileName, count);
+                unbalancedFiles.put(fileName, replicationFactor - count);
             }
         });
 
-        currents.forEach((port, fileNames) -> {
-            if (fileNames.length < minimum) {
-                unders.put(port, minimum - fileNames.length);
-                undersum.set(undersum.get() + (minimum - fileNames.length));
-            } else if (fileNames.length > maximum) {
-                overs.put(port, List.of(fileNames));
+        AtomicBoolean changed = new AtomicBoolean(false);
+
+        unbalancedFiles.forEach((fileName, numberNeeded) -> {
+            int takingFrom = filesStored.get(fileName).getFirst();
+
+            sends.get(takingFrom).put(fileName, new ArrayList<>());
+
+            for (int i = 0; i < numberNeeded; i++) {
+                Integer newPort = findLowestNotContaining(fileName, currents);
+
+                if (newPort != null) {
+                    changed.set(true);
+
+                    sends.get(takingFrom).get(fileName).add(newPort);
+                    currents.get(newPort).add(fileName);
+                    filesStored.get(fileName).add(newPort);
+                }
             }
         });
 
-        for (int port : overs.keySet()) {
-            List<String> fileNames = overs.get(port);
-            while (fileNames.size() > maximum) {
+        Integer unbalancedPort;
+        System.out.println(getUnbalancedPort(minimum, maximum, currents));
+        while ((unbalancedPort = getUnbalancedPort(minimum, maximum, currents)) != null) {
+            changed.set(true);
+            ports.sort(Comparator.comparingInt(port -> currents.get(port).size()));
 
+            if (currents.get(unbalancedPort).size() > maximum) {
+                String chosenFile = null;
+                int minimumPort = unbalancedPort;
+                int minimumCount = Integer.MAX_VALUE;
+                for (String fileName : currents.get(unbalancedPort)) {
+                    Integer port = findLowestNotContaining(fileName, currents);
+
+                    if (port == null) continue;
+
+                    int fileCount = currents.get(port).size();
+                    if (fileCount < minimumCount) {
+                        minimumPort = port;
+                        minimumCount = fileCount;
+                        chosenFile = fileName;
+                    }
+                }
+
+                if (minimumPort != unbalancedPort) {
+                    if (!sends.get(unbalancedPort).containsKey(chosenFile)) sends.get(unbalancedPort).put(chosenFile, new ArrayList<>());
+
+                    sends.get(unbalancedPort).get(chosenFile).add(minimumPort);
+
+                    removals.get(unbalancedPort).add(chosenFile);
+
+                    filesStored.get(chosenFile).remove(unbalancedPort);
+                    filesStored.get(chosenFile).add(minimumPort);
+                }
+            } else {
+                List<String> fileList = currents.get(unbalancedPort);
+                Integer takingFrom = findHighestNotContainingSome(fileList, currents);
+
+                if (takingFrom != null) {
+                    for (String fileName : currents.get(takingFrom)) {
+                        if (!fileList.contains(fileName)) {
+                            if (!sends.get(unbalancedPort).containsKey(fileName)) sends.get(unbalancedPort).put(fileName, new ArrayList<>());
+
+                            sends.get(takingFrom).get(fileName).add(unbalancedPort);
+
+                            removals.get(takingFrom).add(fileName);
+
+                            filesStored.get(fileName).remove(takingFrom);
+                            filesStored.get(fileName).add(unbalancedPort);
+
+                            break;
+                        }
+                    }
+                }
             }
         }
 
-        /*
-        if (oversum > undersum) {
-            int difference = oversum - undersum;
+        if (changed.get()) {
+            for (int port : ports) {
+                StringBuilder request = new StringBuilder("REBALANCE_STORE ");
 
-            for (Map.Entry<Integer, Integer> entry : currents.entrySet()) {
-                int port = entry.getKey();
-                int current = entry.getValue();
-                if (minimum <= current && current < maximum) {
-                    unders.put(port, maximum - current);
-                    difference = difference - (maximum - current);
-                }
-                if (difference == 0) break;
-            }
-        } else if (undersum > oversum) {
-            int difference = undersum - oversum;
+                Map<String, List<Integer>> sendingTo = sends.get(port);
+                request.append(sendingTo.size());
+                for (var entry : sendingTo.entrySet()) {
+                    String fileName = entry.getKey();
+                    List<Integer> sendingToPorts = entry.getValue();
 
-            for (Map.Entry<Integer, Integer> entry : currents.entrySet()) {
-                int port = entry.getKey();
-                int current = entry.getValue();
-                if (minimum < current && current <= maximum) {
-                    overs.put(port, current - minimum);
-                    difference = difference - (current - minimum);
+                    request.append(" ").append(fileName).append(" ").append(sendingToPorts.size());
+
+                    for (int sendingToPort : sendingToPorts) {
+                        dstorePorts.get(sendingToPort).setFileCount(dstorePorts.get(sendingToPort).getFileCount() + 1);
+                        request.append(" ").append(sendingToPort);
+                    }
                 }
-                if (difference == 0) break;
+
+                List<String> storeRemovals = removals.get(port);
+                request.append(" ").append(storeRemovals.size());
+                for (var fileName : storeRemovals) {
+                    request.append(" ").append(fileName);
+                }
+
+                sendDstoreMessage(port, request.toString());
+
+                try {
+                    String message = listenToDstoreMessage(port);
+
+                    if (message.equals(Protocol.REBALANCE_COMPLETE_TOKEN)) {
+                        dstorePorts.get(port).setFileCount(currents.get(port).size());
+                    }
+                } catch (SocketTimeoutException e) {
+
+                }
             }
-        }*/
+
+            for (var entry : filesStored.entrySet()) {
+                String fileName = entry.getKey();
+                List<Integer> storedPorts = entry.getValue();
+
+                fileIndex.get(fileName).setDstorePorts(storedPorts);
+            }
+        } else {
+            log("No rebalance needed");
+        }
+
+        log("Rebalance completed");
+        rebalancing = false;
+    }
+
+    private Integer findLowestNotContaining(String fileName, Map<Integer, List<String>> ports) {
+        List<Integer> portsNotContaining = new ArrayList<>();
+
+        ports.forEach((port, fileList) -> {
+            if (!fileList.contains(fileName)) {
+                portsNotContaining.add(port);
+            }
+        });
+
+        portsNotContaining.sort(Comparator.comparingInt(port -> ports.get(port).size()));
+
+        return portsNotContaining.getFirst();
+    }
+
+    private Integer findHighestNotContainingSome(List<String> fileNames, Map<Integer, List<String>> ports) {
+        List<Integer> portsNotContaining = new ArrayList<>();
+
+        ports.forEach((port, fileList) -> {
+            for (var fileName : fileList) {
+                if (!fileList.contains(fileName)) {
+                    portsNotContaining.add(port);
+                }
+                break;
+            }
+        });
+
+        portsNotContaining.sort(Comparator.comparingInt(port -> ports.get(port).size()));
+
+        return portsNotContaining.getLast();
     }
 
     public static void main(String[] args) {
@@ -354,14 +523,14 @@ public class Controller {
     }
 
     private class ServiceThread implements Runnable {
-        Socket client;
-        ServiceThread(Socket c) {
-            client=c;
+        Socket socket;
+        ServiceThread(Socket s) {
+            socket = s;
         }
         public void run() {
             try {
-                BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                PrintWriter out = new PrintWriter(client.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 String line;
                 while((line = in.readLine()) != null) {
                     log("TCP message received: " + line);
@@ -392,7 +561,7 @@ public class Controller {
                             break;
                     }
                 }
-                client.close();
+                socket.close();
             } catch(Exception e) {
                 error(e.toString());
             }

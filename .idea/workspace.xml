@@ -4,15 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="Initial upload">
+    <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="Made a lot of headway (should've pushed earlier)">
       <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/DstoreInfo.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/FileInfo.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/Protocol.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Main.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Dstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/DstoreInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/DstoreInfo.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/FileInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/FileInfo.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -65,11 +63,11 @@
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.Dstore">
+  <component name="RunManager" selected="Application.Dstore (2)">
     <configuration name="Controller" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Controller" />
       <module name="COMP2207-Coursework" />
-      <option name="PROGRAM_PARAMETERS" value="12345 2 1000 1000" />
+      <option name="PROGRAM_PARAMETERS" value="12345 2 3000 10000" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -106,9 +104,9 @@
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.Dstore (1)" />
         <item itemvalue="Application.Dstore" />
         <item itemvalue="Application.Controller" />
-        <item itemvalue="Application.Dstore (1)" />
       </list>
     </recent_temporary>
   </component>
@@ -130,7 +128,7 @@
       <workItem from="1710167527249" duration="1132000" />
       <workItem from="1710178237043" duration="16000" />
       <workItem from="1710357239483" duration="21000" />
-      <workItem from="1711585727874" duration="55012000" />
+      <workItem from="1711585727874" duration="80415000" />
     </task>
     <task id="LOCAL-00001" summary="Initial upload">
       <option name="closed" value="true" />
@@ -140,7 +138,15 @@
       <option name="project" value="LOCAL" />
       <updated>1710167595389</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Made a lot of headway (should've pushed earlier)">
+      <option name="closed" value="true" />
+      <created>1711995314536</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1711995314536</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -159,6 +165,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial upload" />
-    <option name="LAST_COMMIT_MESSAGE" value="Initial upload" />
+    <MESSAGE value="Made a lot of headway (should've pushed earlier)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Made a lot of headway (should've pushed earlier)" />
   </component>
 </project>

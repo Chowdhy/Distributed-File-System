@@ -24,6 +24,10 @@ public class FileInfo {
         return dstorePorts;
     }
 
+    public void setDstorePorts(List<Integer> dstorePorts) {
+        this.dstorePorts = dstorePorts;
+    }
+
     public void setStatus(Status status) {
         this.status = status;
     }

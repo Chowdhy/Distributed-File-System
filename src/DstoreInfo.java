@@ -1,39 +1,33 @@
 import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.net.Socket;
 
-public class DstoreInfo {
+public class DstoreInfo implements Comparable<DstoreInfo> {
     int port;
-    DstoreListener listener;
+    Socket socket;
     PrintWriter out;
     BufferedReader in;
     int fileCount;
 
-    interface DstoreListener {
-        void messageReceived(String message);
+    @Override
+    public int compareTo(DstoreInfo dstoreInfo) {
+        return Integer.compare(this.getFileCount(), dstoreInfo.getFileCount());
     }
 
-    public DstoreInfo (int port, PrintWriter out, BufferedReader in) {
+    public DstoreInfo (int port, Socket socket, PrintWriter out, BufferedReader in) {
         this.port = port;
+        this.socket = socket;
         this.out = out;
         this.in = in;
         fileCount = 0;
-    }
-
-    public void setOnMessageReceived(DstoreListener listener) {
-        this.listener = listener;
-    }
-
-    public void removeListener() {
-        this.listener = null;
     }
 
     public void writeLine(String message) {
         out.println(message);
     }
 
-    public void fire(String message) {
-        System.out.println("REACHED INFO CLASS");
-        listener.messageReceived(message);
+    public BufferedReader getReader() {
+        return in;
     }
 
     public int getFileCount() {
@@ -46,5 +40,9 @@ public class DstoreInfo {
 
     public int getPort() {
         return port;
+    }
+
+    public Socket getSocket() {
+        return socket;
     }
 }
