@@ -143,13 +143,13 @@ public class Dstore {
         try {
             InetAddress address = InetAddress.getLocalHost();
             try (Socket socket = new Socket(address, port)) {
-                socket.setSoTimeout(timeout);
-
                 PrintWriter textWriter = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader textReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 OutputStream dataWriter = socket.getOutputStream();
 
                 textWriter.println(Protocol.REBALANCE_STORE_TOKEN + " " + fileName + " " + fileSize);
+
+                socket.setSoTimeout(timeout);
 
                 String ack = textReader.readLine();
                 if (ack.equals(Protocol.ACK_TOKEN)) {
@@ -172,12 +172,12 @@ public class Dstore {
     }
 
     private void rebalance(String[] args) {
-        int endIndex = 0;
+        int currentIndex = 0;
 
-        int transferCount = Integer.parseInt(args[endIndex]);
+        int transferCount = Integer.parseInt(args[currentIndex]);
         for (int i = 0; i < transferCount; i++) {
-            int fileNameIndex = endIndex++;
-            int portCountIndex = endIndex++;
+            int fileNameIndex = ++currentIndex;
+            int portCountIndex = ++currentIndex;
 
             String fileName = args[fileNameIndex];
             byte[] fileContent = readFile(fileName);
@@ -186,17 +186,17 @@ public class Dstore {
             int portCount = Integer.parseInt(args[portCountIndex]);
 
             for (int i_ = 0; i_ < portCount; i_++) {
-                int portIndex = endIndex++;
+                int portIndex = ++currentIndex;
                 int port = Integer.parseInt(args[portIndex]);
 
                 sendFile(fileName, port, fileSize, fileContent);
             }
         }
 
-        int removeCountIndex = endIndex++;
+        int removeCountIndex = ++currentIndex;
         int removeCount = Integer.parseInt(args[removeCountIndex]);
         for (int i = 0; i < removeCount; i++) {
-            int removeIndex = endIndex++;
+            int removeIndex = ++currentIndex;
             String fileToRemove = args[removeIndex];
             deleteFile(fileToRemove);
         }
@@ -250,6 +250,7 @@ public class Dstore {
 
                         case Protocol.REBALANCE_TOKEN:
                             rebalance(Arrays.copyOfRange(cmd, 1, cmd.length));
+                            textWriter.println(Protocol.REBALANCE_COMPLETE_TOKEN);
                             break;
 
                         case Protocol.REBALANCE_STORE_TOKEN:

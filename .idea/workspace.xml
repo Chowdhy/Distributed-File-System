@@ -5,12 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="Made a lot of headway (should've pushed earlier)">
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Dstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/DstoreInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/DstoreInfo.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/FileInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/FileInfo.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,11 +63,11 @@
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.Dstore (2)">
+  <component name="RunManager" selected="Application.Dstore (1)">
     <configuration name="Controller" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Controller" />
       <module name="COMP2207-Coursework" />
-      <option name="PROGRAM_PARAMETERS" value="12345 2 3000 10000" />
+      <option name="PROGRAM_PARAMETERS" value="12345 2 3000 8000" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -128,7 +128,7 @@
       <workItem from="1710167527249" duration="1132000" />
       <workItem from="1710178237043" duration="16000" />
       <workItem from="1710357239483" duration="21000" />
-      <workItem from="1711585727874" duration="80415000" />
+      <workItem from="1711585727874" duration="98508000" />
     </task>
     <task id="LOCAL-00001" summary="Initial upload">
       <option name="closed" value="true" />
@@ -146,7 +146,15 @@
       <option name="project" value="LOCAL" />
       <updated>1711995314536</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Made a lot of headway (should've pushed earlier)">
+      <option name="closed" value="true" />
+      <created>1712082547892</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1712082547892</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
