@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="Just before i change it up">
+    <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="Before I change it x2">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Dstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
@@ -65,15 +65,15 @@
     <configuration name="Controller" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Controller" />
       <module name="COMP2207-Coursework" />
-      <option name="PROGRAM_PARAMETERS" value="12345 2 3000 8000" />
+      <option name="PROGRAM_PARAMETERS" value="12345 3 1000 100000" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Dstore (1)" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+    <configuration name="Dstore (1)" type="Application" factoryName="Application" temporary="true">
       <option name="MAIN_CLASS_NAME" value="Dstore" />
       <module name="COMP2207-Coursework" />
-      <option name="PROGRAM_PARAMETERS" value="420 12345 1000 &quot;dstore_2&quot;" />
+      <option name="PROGRAM_PARAMETERS" value="12347 12345 1000 &quot;dstore_2&quot;" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -81,7 +81,7 @@
     <configuration name="Dstore (2)" type="Application" factoryName="Application">
       <option name="MAIN_CLASS_NAME" value="Dstore" />
       <module name="COMP2207-Coursework" />
-      <option name="PROGRAM_PARAMETERS" value="42069 12345 1000 &quot;dstore_3&quot;" />
+      <option name="PROGRAM_PARAMETERS" value="12348 12345 1000 &quot;dstore_3&quot;" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -89,7 +89,7 @@
     <configuration name="Dstore" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Dstore" />
       <module name="COMP2207-Coursework" />
-      <option name="PROGRAM_PARAMETERS" value="6969 12345 1000 &quot;dstore_1&quot;" />
+      <option name="PROGRAM_PARAMETERS" value="12346 12345 1000 &quot;dstore_1&quot;" />
       <method v="2">
         <option name="Make" enabled="true" />
       </method>
@@ -127,7 +127,7 @@
       <workItem from="1710178237043" duration="16000" />
       <workItem from="1710357239483" duration="21000" />
       <workItem from="1711585727874" duration="98508000" />
-      <workItem from="1713006114919" duration="22174000" />
+      <workItem from="1713006114919" duration="33845000" />
     </task>
     <task id="LOCAL-00001" summary="Initial upload">
       <option name="closed" value="true" />
@@ -161,7 +161,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713011914962</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Before I change it x2">
+      <option name="closed" value="true" />
+      <created>1713542897859</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1713542897859</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -182,7 +190,8 @@
     <MESSAGE value="Initial upload" />
     <MESSAGE value="Made a lot of headway (should've pushed earlier)" />
     <MESSAGE value="Just before i change it up" />
-    <option name="LAST_COMMIT_MESSAGE" value="Just before i change it up" />
+    <MESSAGE value="Before I change it x2" />
+    <option name="LAST_COMMIT_MESSAGE" value="Before I change it x2" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

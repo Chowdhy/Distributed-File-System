@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -22,12 +23,12 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
         return Integer.compare(this.getFileCount(), dstoreInfo.getFileCount());
     }
 
-    public DstoreInfo (int port, Socket socket) throws IOException {
+    public DstoreInfo (int port, Socket socket, BufferedReader in) throws IOException {
         this.port = port;
         this.socket = socket;
 
         out = new PrintWriter(socket.getOutputStream(), true);
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.in = in;
 
         listeners = new ArrayList<>();
 
@@ -92,11 +93,11 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
         return listeners.contains(listener);
     }
 
-    public String waitForMessage(String commandWord, int timeout) throws TimeoutException {
+    public String waitForMessage(Set<String> desiredMessages, int timeout) throws TimeoutException {
         AtomicReference<String> receivedMessage = new AtomicReference<>();
 
         DstoreMessageListener listener = (message -> {
-            if (message.split(" ")[0].equals(commandWord)) {
+            if (desiredMessages.contains(message.split(" ")[0])) {
                 receivedMessage.set(message);
             }
         });

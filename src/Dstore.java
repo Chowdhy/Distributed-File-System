@@ -51,20 +51,15 @@ public class Dstore {
         try {
             InetAddress address = InetAddress.getLocalHost();
             controllerSocket = new Socket(address, cport);
-            PrintWriter localControllerWriter = new PrintWriter(controllerSocket.getOutputStream(), true);
+            controllerWriter = new PrintWriter(controllerSocket.getOutputStream(), true);
+
+            controllerWriter.println(Protocol.JOIN_TOKEN + " " + port);
+            log("Sent join request to " + cport);
+
+            new Thread(new ServiceThread(controllerSocket)).start();
 
             serverSocket = new ServerSocket(port);
             log("Dstore server started on port " + port);
-
-            localControllerWriter.println(Protocol.JOIN_TOKEN + " " + port);
-            log("Sent join request to " + cport);
-
-            Socket socket = serverSocket.accept();
-            log("Controller connection accepted");
-
-            controllerWriter = new PrintWriter(socket.getOutputStream(), true);
-
-            new Thread(new ServiceThread(socket)).start();
 
             while (true) {
                 try {

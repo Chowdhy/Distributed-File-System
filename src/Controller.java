@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class Controller {
     private ServerSocket serverSocket;
@@ -81,8 +80,8 @@ public class Controller {
             try {
                 Socket socket = serverSocket.accept();
                 log("Connection requested accepted");
-                new Thread(new ServiceThread(socket)).start();
                 sockets.add(socket);
+                new Thread(new ServiceThread(socket)).start();
             } catch (Exception e) {
                 error(e.toString());
             }
@@ -105,13 +104,17 @@ public class Controller {
         log("Dstore (" + port + ") TCP message sent: " + message);
     }
 
-    private String waitForDstoreMessage(int port, String commandWord) throws TimeoutException {
+    private String waitForDstoreMessage(int port, Set<String> commandWord) throws TimeoutException {
         DstoreInfo info = dstorePorts.get(port);
         String message = info.waitForMessage(commandWord, timeout);
         log("Message received from port " + port + ": " + message);
         return message;
     }
-    
+
+    private String waitForDstoreMessage(int port, String singleMessage) throws TimeoutException {
+        return waitForDstoreMessage(port, Set.of(singleMessage));
+    }
+
     private String listenToDstoreMessage(Socket socket) throws SocketTimeoutException {
         int port = socket.getPort();
 
@@ -128,14 +131,11 @@ public class Controller {
         }
     }
 
-    private void join(int port) {
+    private void join(int port, Socket socket, BufferedReader in) {
         try {
-            InetAddress address = InetAddress.getLocalHost();
-            Socket socket = new Socket(address, port);
             log("Connection established on port " + port);
 
-            DstoreInfo info = new DstoreInfo(port, socket);
-            System.out.println("GOT HERE");
+            DstoreInfo info = new DstoreInfo(port, socket, in);
             dstorePorts.put(port, info);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -189,6 +189,7 @@ public class Controller {
             DstoreInfo info = dstorePorts.get(port);
 
             new Thread(() -> {
+
                 try {
                     String message = waitForDstoreMessage(port, Protocol.STORE_ACK_TOKEN);
 
@@ -199,8 +200,8 @@ public class Controller {
 
                     if (inc.get() == replicationFactor) {
                         fileIndex.get(fileName).setStatus(FileInfo.Status.STORE_COMPLETE);
-                        System.out.println("ALL ACKS RECEIVED");
-                        System.out.println(fileIndex.get(fileName).getStatus());
+                        log("ALL ACKS RECEIVED");
+                        log(fileName + " status is " + fileIndex.get(fileName).getStatus());
                         sendClientMessage(out, Protocol.STORE_COMPLETE_TOKEN);
                     }
                 } catch (TimeoutException e) {
@@ -216,6 +217,7 @@ public class Controller {
                 Thread.sleep(timeout);
                 if (storeInProgress(fileName)) {
                     fileIndex.remove(fileName);
+                    error("NOT RECEIVED ALL STORE ACKS");
                 }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -257,7 +259,10 @@ public class Controller {
         for (int port : ports) {
             new Thread(() -> {
                 try {
-                    String message = waitForDstoreMessage(port, Protocol.REMOVE_ACK_TOKEN);
+                    Set<String> acceptableMessages = new HashSet<>(Arrays.asList(Protocol.REMOVE_ACK_TOKEN, Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN));
+
+                    sendDstoreMessage(port, Protocol.REMOVE_TOKEN + " " + fileName);
+                    String message = waitForDstoreMessage(port, acceptableMessages);
 
                     if (message.equals(Protocol.REMOVE_ACK_TOKEN + " " + fileName) || message.equals(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName)) {
                         inc.getAndIncrement();
@@ -271,8 +276,6 @@ public class Controller {
                     log("Message timeout");
                 }
             }).start();
-
-            sendDstoreMessage(port, Protocol.REMOVE_TOKEN + " " + fileName);
         }
     }
 
@@ -348,9 +351,11 @@ public class Controller {
             if (dstorePorts.size() < replicationFactor) {
                 log("Not enough Dstores to rebalance");
             } else {
+                Set<String> filesInMemory = Set.copyOf(fileIndex.keySet());
                 Map<String, List<Integer>> filesStored = new HashMap<>();
-
                 List<Integer> ports = new ArrayList<>();
+
+                AtomicBoolean changed = new AtomicBoolean(false);
 
                 int dstoreNumber = dstorePorts.keySet().size();
                 int fileNumber = fileIndex.size();
@@ -379,6 +384,12 @@ public class Controller {
                                 List<String> fileNames = new ArrayList<>(List.of(Arrays.copyOfRange(args, 1, args.length)));
                                 currents.put(port, fileNames);
                                 for (var fileName : fileNames) {
+                                    if (!filesInMemory.contains(fileName)) {
+                                        removals.get(port).add(fileName);
+                                        changed.set(true);
+                                        break;
+                                    }
+
                                     if (!filesStored.containsKey(fileName))
                                         filesStored.put(fileName, new ArrayList<>());
                                     filesStored.get(fileName).add(port);
@@ -401,8 +412,6 @@ public class Controller {
                         unbalancedFiles.put(fileName, replicationFactor - count);
                     }
                 });
-
-                AtomicBoolean changed = new AtomicBoolean(false);
 
                 unbalancedFiles.forEach((fileName, numberNeeded) -> {
                     int takingFrom = filesStored.get(fileName).getFirst();
@@ -486,6 +495,7 @@ public class Controller {
 
                         Map<String, List<Integer>> sendingTo = sends.get(port);
                         request.append(sendingTo.size());
+
                         for (var entry : sendingTo.entrySet()) {
                             String fileName = entry.getKey();
                             List<Integer> sendingToPorts = entry.getValue();
@@ -493,7 +503,6 @@ public class Controller {
                             request.append(" ").append(fileName).append(" ").append(sendingToPorts.size());
 
                             for (int sendingToPort : sendingToPorts) {
-                                dstorePorts.get(sendingToPort).setFileCount(dstorePorts.get(sendingToPort).getFileCount() + 1);
                                 request.append(" ").append(sendingToPort);
                             }
                         }
@@ -507,11 +516,8 @@ public class Controller {
                         sendDstoreMessage(port, request.toString());
 
                         try {
-                            String message = waitForDstoreMessage(port, Protocol.REBALANCE_COMPLETE_TOKEN);
-
-                            if (message.equals(Protocol.REBALANCE_COMPLETE_TOKEN)) {
-                                dstorePorts.get(port).setFileCount(currents.get(port).size());
-                            }
+                            waitForDstoreMessage(port, Protocol.REBALANCE_COMPLETE_TOKEN);
+                            dstorePorts.get(port).setFileCount(currents.get(port).size());
                         } catch (TimeoutException e) {
                             log("Message timeout");
                         }
@@ -592,13 +598,15 @@ public class Controller {
 
                     String[] cmd = line.split(" ");
 
+                    if (cmd[0].equals(Protocol.JOIN_TOKEN)) {
+                        sockets.remove(socket);
+                        join(Integer.parseInt(cmd[1]), socket, in);
+                        break;
+                    }
+
                     if (!cmd[0].equals(Protocol.RELOAD_TOKEN)) previousPorts.clear();
 
                     switch (cmd[0]) {
-                        case Protocol.JOIN_TOKEN:
-                            join(Integer.parseInt(cmd[1]));
-                            break;
-
                         case Protocol.STORE_TOKEN:
                             if (notEnoughDstores(out)) break;
                             store(out, cmd[1], Integer.parseInt(cmd[2]));
