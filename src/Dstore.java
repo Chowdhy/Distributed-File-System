@@ -23,6 +23,11 @@ public class Dstore {
         }
     }
 
+    private void sendControllerMessage(String message) {
+        controllerWriter.println(message);
+        log("Sent controller message: " + message);
+    }
+
     private void log(String message) {
         System.out.println("[DSTORE " + port + "] " + message);
     }
@@ -100,7 +105,7 @@ public class Dstore {
 
     private void store(String fileName, byte[] fileBytes) {
         saveFile(fileName, fileBytes);
-        controllerWriter.println(Protocol.STORE_ACK_TOKEN + " " + fileName);
+        sendControllerMessage(Protocol.STORE_ACK_TOKEN + " " + fileName);
     }
 
     private void deleteFile(String fileName) {
@@ -113,7 +118,7 @@ public class Dstore {
 
         try {
             if (file.createNewFile()) {
-                controllerWriter.println(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName);
+                sendControllerMessage(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName);
                 file.delete();
                 return;
             }
@@ -122,7 +127,7 @@ public class Dstore {
         }
 
         file.delete();
-        controllerWriter.println(Protocol.REMOVE_ACK_TOKEN + " " + fileName);
+        sendControllerMessage(Protocol.REMOVE_ACK_TOKEN + " " + fileName);
     }
 
     private void list() {
@@ -136,7 +141,7 @@ public class Dstore {
             }
         }
 
-        controllerWriter.println(fileNameList);
+        sendControllerMessage(fileNameList.toString());
     }
 
     private void sendFile(String fileName, int port, int fileSize, byte[] content) {
@@ -147,7 +152,10 @@ public class Dstore {
                 BufferedReader textReader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 OutputStream dataWriter = socket.getOutputStream();
 
-                textWriter.println(Protocol.REBALANCE_STORE_TOKEN + " " + fileName + " " + fileSize);
+                String message = Protocol.REBALANCE_STORE_TOKEN + " " + fileName + " " + fileSize;
+
+                textWriter.println(message);
+                log("Dstore message sent: " + message);
 
                 socket.setSoTimeout(timeout);
 
@@ -232,6 +240,7 @@ public class Dstore {
                     switch (cmd[0]) {
                         case Protocol.STORE_TOKEN:
                             textWriter.println(Protocol.ACK_TOKEN);
+                            log("Client message sent: " + Protocol.ACK_TOKEN);
                             store(cmd[1], dataReader.readNBytes(Integer.parseInt(cmd[2])));
                             break;
 
@@ -251,16 +260,13 @@ public class Dstore {
                         case Protocol.REBALANCE_TOKEN:
                             rebalance(Arrays.copyOfRange(cmd, 1, cmd.length));
                             textWriter.println(Protocol.REBALANCE_COMPLETE_TOKEN);
+                            log("Client message sent: " + Protocol.REBALANCE_COMPLETE_TOKEN);
                             break;
 
                         case Protocol.REBALANCE_STORE_TOKEN:
                             textWriter.println(Protocol.ACK_TOKEN);
+                            log("Dstore message sent: " + Protocol.ACK_TOKEN);
                             saveFile(cmd[1], dataReader.readNBytes(Integer.parseInt(cmd[2])));
-                            break;
-
-                        case "CHECK":
-                            textWriter.println(Protocol.ACK_TOKEN);
-                            log("SENT ACK");
                             break;
                     }
                 }
