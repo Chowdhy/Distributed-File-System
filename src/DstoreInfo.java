@@ -1,10 +1,8 @@
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -49,6 +47,7 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
             while ((message = in.readLine()) != null) {
                 for (var listener : List.copyOf(listeners)) {
                     listener.messageReceived(message);
+                    System.out.println("RECEIVED: " + message);
                 }
             }
         } catch (IOException e) {
@@ -60,10 +59,6 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
 
     public void writeLine(String message) {
         out.println(message);
-    }
-
-    public BufferedReader getReader() {
-        return in;
     }
 
     public int getFileCount() {
@@ -82,14 +77,14 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
         return socket;
     }
 
-    public void addListener(DstoreMessageListener listener) {
+    private void addListener(DstoreMessageListener listener) {
         listeners.add(listener);
     }
 
-    public void removeListener(DstoreMessageListener listener) {
+    private void removeListener(DstoreMessageListener listener) {
         listeners.remove(listener);
     }
-    public boolean hasListener(DstoreMessageListener listener) {
+    private boolean hasListener(DstoreMessageListener listener) {
         return listeners.contains(listener);
     }
 
@@ -104,9 +99,7 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
 
         Future<String> stringFuture = Executors.newSingleThreadScheduledExecutor().submit(() -> {
             addListener(listener);
-            while (receivedMessage.get() == null) {
-
-            }
+            while (receivedMessage.get() == null);
             removeListener(listener);
             return receivedMessage.get();
         });
