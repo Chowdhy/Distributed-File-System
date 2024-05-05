@@ -32,13 +32,14 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
 
         fileCount = 0;
 
+        /*
         new Thread(() -> {
             try {
                 listenToMessages();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }).start();
+        }).start();*/
     }
 
     private void listenToMessages() throws IOException {
@@ -86,6 +87,15 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
     }
     private boolean hasListener(DstoreMessageListener listener) {
         return listeners.contains(listener);
+    }
+
+    public String waitForMessage(int timeout) {
+        try {
+            socket.setSoTimeout(timeout);
+            return in.readLine();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     public String waitForMessage(Set<String> desiredMessages, int timeout) throws TimeoutException {

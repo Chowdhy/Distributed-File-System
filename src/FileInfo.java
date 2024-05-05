@@ -1,4 +1,3 @@
-import java.util.Arrays;
 import java.util.List;
 
 public class FileInfo {
@@ -33,6 +32,6 @@ public class FileInfo {
     }
 
     public enum Status {
-        STORE_IN_PROGRESS, STORE_COMPLETE, REMOVE_IN_PROGRESS, REMOVE_COMPLETE;
+        STORE_IN_PROGRESS, STORE_COMPLETE, REMOVE_IN_PROGRESS, REMOVE_COMPLETE
     }
 }

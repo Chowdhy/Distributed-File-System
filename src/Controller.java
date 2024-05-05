@@ -34,7 +34,7 @@ public class Controller {
     }
 
     private void error(Exception e) {
-        error(e.toString());
+        e.printStackTrace(System.err);
     }
 
     private void incrementOperations() {
@@ -119,6 +119,17 @@ public class Controller {
         log("Dstore (" + port + ") TCP message sent: " + message);
     }
 
+    private String waitForDstoreMessage(int port) {
+        DstoreInfo info = dstorePorts.get(port);
+        String message = info.waitForMessage(timeout);
+        if (message == null) {
+            log("No message received from port " + port);
+        } else {
+            log("Message received from port " + port + ": " + message);
+        }
+        return message;
+    }
+
     private String waitForDstoreMessage(int port, Set<String> commandWord) throws TimeoutException {
         DstoreInfo info = dstorePorts.get(port);
         String message = info.waitForMessage(commandWord, timeout);
@@ -173,50 +184,53 @@ public class Controller {
     private void store(PrintWriter out, String fileName, int fileSize) {
         if (fileExists(fileName) || storeInProgress(fileName) || removeInProgress(fileName)) {
             sendClientMessage(out, Protocol.ERROR_FILE_ALREADY_EXISTS_TOKEN);
-            return;
-        }
+        } else {
+            fileIndex.put(fileName, new FileInfo(fileSize, new ArrayList<>()));
 
-        incrementOperations();
+            incrementOperations();
 
-        List<Integer> usedPorts = selectRDstores();
-        StringBuilder usedPortString = new StringBuilder();
+            List<Integer> usedPorts = selectRDstores();
+            StringBuilder usedPortString = new StringBuilder();
 
-        fileIndex.put(fileName, new FileInfo(fileSize, usedPorts));
+            fileIndex.get(fileName).setDstorePorts(usedPorts);
 
-        CountDownLatch latch = new CountDownLatch(replicationFactor);
+            CountDownLatch latch = new CountDownLatch(replicationFactor);
 
-        for (var port : usedPorts) {
-            usedPortString.append(" ").append(port);
-            DstoreInfo info = dstorePorts.get(port);
+            for (var port : usedPorts) {
+                usedPortString.append(" ").append(port);
+                DstoreInfo info = dstorePorts.get(port);
 
-            new Thread(() -> {
-                try {
-                    String message = waitForDstoreMessage(port, Protocol.STORE_ACK_TOKEN);
+                new Thread(() -> {
+                    String expectedMessage = Protocol.STORE_ACK_TOKEN + " " + fileName;
+                    String message = waitForDstoreMessage(port);
 
-                    if (message.equals(Protocol.STORE_ACK_TOKEN + " " + fileName)) {
+                    if (message != null && message.equals(expectedMessage)) {
                         latch.countDown();
                         info.setFileCount(info.getFileCount() + 1);
+                        log("Received store ack from port " + port);
+                    } else if (message == null) {
+                        error("Store ack timeout on port " + port);
+                    } else {
+                        error("Expected '" + expectedMessage + "' from port " + port + ", received '" + message + "'");
                     }
-                } catch (TimeoutException e) {
-                    log("Store ack timeout on port " + port);
-                }
-            }).start();
-        }
-
-        sendClientMessage(out, Protocol.STORE_TO_TOKEN + usedPortString);
-
-        try {
-            if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
-                fileIndex.get(fileName).setStatus(FileInfo.Status.STORE_COMPLETE);
-                log("ALL STORE ACKS RECEIVED");
-                sendClientMessage(out, Protocol.STORE_COMPLETE_TOKEN);
-            } else {
-                fileIndex.remove(fileName);
-                log("NOT RECEIVED ALL STORE ACKS");
+                }).start();
             }
-            decrementOperations();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+
+            sendClientMessage(out, Protocol.STORE_TO_TOKEN + usedPortString);
+
+            try {
+                if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
+                    fileIndex.get(fileName).setStatus(FileInfo.Status.STORE_COMPLETE);
+                    log("ALL STORE ACKS RECEIVED");
+                    sendClientMessage(out, Protocol.STORE_COMPLETE_TOKEN);
+                } else {
+                    fileIndex.remove(fileName);
+                    error("NOT RECEIVED ALL STORE ACKS");
+                }
+                decrementOperations();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -243,46 +257,46 @@ public class Controller {
     private void remove(PrintWriter out, String fileName) {
         if (!fileExists(fileName) || storeInProgress(fileName) || removeInProgress(fileName)) {
             sendClientMessage(out, Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
-            return;
-        }
+        } else {
+            incrementOperations();
 
-        incrementOperations();
+            FileInfo info = fileIndex.get(fileName);
+            info.setStatus(FileInfo.Status.REMOVE_IN_PROGRESS);
+            List<Integer> ports = info.getDstorePorts();
 
-        FileInfo info = fileIndex.get(fileName);
-        info.setStatus(FileInfo.Status.REMOVE_IN_PROGRESS);
-        List<Integer> ports = info.getDstorePorts();
+            CountDownLatch latch = new CountDownLatch(ports.size());
 
-        CountDownLatch latch = new CountDownLatch(ports.size());
+            Set<String> acceptableMessages = new HashSet<>();
+            acceptableMessages.add(Protocol.REMOVE_ACK_TOKEN);
+            acceptableMessages.add(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
 
-        Set<String> acceptableMessages = new HashSet<>();
-        acceptableMessages.add(Protocol.REMOVE_ACK_TOKEN);
-        acceptableMessages.add(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN);
+            for (int port : ports) {
+                new Thread(() -> {
+                    String expectedMessage = Protocol.REMOVE_ACK_TOKEN + " " + fileName;
+                    String message = waitForDstoreMessage(port);
 
-        for (int port : ports) {
-            new Thread(() -> {
-                try {
-                    String message = waitForDstoreMessage(port, acceptableMessages);
-
-                    if (message.equals(Protocol.REMOVE_ACK_TOKEN + " " + fileName) || message.equals(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName)) {
+                    if (message != null && (message.equals(expectedMessage) || message.equals(Protocol.ERROR_FILE_DOES_NOT_EXIST_TOKEN + " " + fileName))) {
                         latch.countDown();
+                    } else if (message == null) {
+                        error("Remove ack timeout on port " + port);
+                    } else {
+                        error("Expected '" + expectedMessage + "' from port " + port + ", received '" + message + "'");
                     }
-                } catch (TimeoutException e) {
-                    log("Remove ack timeout on port " + port);
-                }
-            }).start();
-            sendDstoreMessage(port, Protocol.REMOVE_TOKEN + " " + fileName);
-        }
-
-        try {
-            if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
-                fileIndex.remove(fileName);
-                sendClientMessage(out, Protocol.REMOVE_COMPLETE_TOKEN);
-            } else {
-                error("NOT RECEIVED ALL REMOVE ACKS");
+                }).start();
+                sendDstoreMessage(port, Protocol.REMOVE_TOKEN + " " + fileName);
             }
-            decrementOperations();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+
+            try {
+                if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
+                    fileIndex.remove(fileName);
+                    sendClientMessage(out, Protocol.REMOVE_COMPLETE_TOKEN);
+                } else {
+                    error("NOT RECEIVED ALL REMOVE ACKS");
+                }
+                decrementOperations();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -350,7 +364,7 @@ public class Controller {
                 log("Not enough Dstores to rebalance");
             } else {
                 Set<String> filesInMemory = new HashSet<>(Set.copyOf(fileIndex.keySet()));
-                Map<String, List<Integer>> filesStored = new HashMap<>();
+                Map<String, List<Integer>> filesStored = new ConcurrentHashMap<>();
                 List<Integer> ports = new ArrayList<>();
 
                 AtomicBoolean changed = new AtomicBoolean(false);
@@ -362,21 +376,21 @@ public class Controller {
                 int minimum = (int) Math.floor(threshold);
                 int maximum = (int) Math.ceil(threshold);
 
-                Map<Integer, List<String>> currents = new HashMap<>();
+                Map<Integer, List<String>> currents = new ConcurrentHashMap<>();
 
-                Map<Integer, Map<String, List<Integer>>> sends = new HashMap<>();
-                Map<Integer, List<String>> removals = new HashMap<>();
+                Map<Integer, Map<String, List<Integer>>> sends = new ConcurrentHashMap<>();
+                Map<Integer, List<String>> removals = new ConcurrentHashMap<>();
 
                 for (int port : dstorePorts.keySet()) {
                     ports.add(port);
 
                     new Thread(() -> {
-                        try {
-                            String message = waitForDstoreMessage(port, Protocol.LIST_TOKEN);
+                        String message = waitForDstoreMessage(port);
 
+                        if (message != null) {
                             String[] args = message.split(" ");
                             if (args[0].equals(Protocol.LIST_TOKEN)) {
-                                sends.put(port, new HashMap<>());
+                                sends.put(port, new ConcurrentHashMap<>());
                                 removals.put(port, new ArrayList<>());
 
                                 List<String> fileNames = new ArrayList<>(List.of(Arrays.copyOfRange(args, 1, args.length)));
@@ -396,15 +410,18 @@ public class Controller {
                                         filesStored.put(fileName, new ArrayList<>());
                                     filesStored.get(fileName).add(port);
                                 }
+                            } else {
+                                error("Expected 'LIST' from port " + port + ", received '" + message + "'");
                             }
-                        } catch (TimeoutException e) {
-                            log("Rebalance list timeout on port " + port);
+                        } else {
+                            ports.remove(port);
+                            error("Rebalance list timeout on port " + port);
                         }
                     }).start();
                     sendDstoreMessage(port, Protocol.LIST_TOKEN);
                 }
 
-                Map<String, Integer> unbalancedFiles = new HashMap<>();
+                Map<String, Integer> unbalancedFiles = new ConcurrentHashMap<>();
 
                 filesStored.forEach((fileName, storedPorts) -> {
                     int count = storedPorts.size();
@@ -433,14 +450,30 @@ public class Controller {
                 });
 
                 Integer unbalancedPort;
-                log(getUnbalancedPort(minimum, maximum, currents));
 
                 TriFunction<String, Integer, Integer, Void> sendAndRemove = (fileName, source, destination) -> {
                     if (!sends.get(source).containsKey(fileName)) sends.get(source).put(fileName, new ArrayList<>());
 
-                    sends.get(source).get(fileName).add(destination);
+                    boolean originator = true;
+                    for (var entry : sends.entrySet()) {
+                        int sourcePort = entry.getKey();
+                        var sendingFiles = entry.getValue();
 
-                    removals.get(source).add(fileName);
+                        if (sendingFiles.containsKey(fileName) && sendingFiles.get(fileName).contains(source)) {
+                            sends.get(sourcePort).get(fileName).add(destination);
+                            sends.get(sourcePort).get(fileName).remove(source);
+                            originator = false;
+                            break;
+                        }
+                    }
+
+                    if (originator) {
+                        sends.get(source).get(fileName).add(destination);
+
+                        if (!removals.get(source).contains(fileName)) {
+                            removals.get(source).add(fileName);
+                        }
+                    }
 
                     filesStored.get(fileName).remove(source);
                     filesStored.get(fileName).add(destination);
@@ -452,6 +485,7 @@ public class Controller {
                 };
 
                 while ((unbalancedPort = getUnbalancedPort(minimum, maximum, currents)) != null) {
+                    log("Port " + unbalancedPort + " is unbalanced");
                     changed.set(true);
                     ports.sort(Comparator.comparingInt(port -> currents.get(port).size()));
 
@@ -516,11 +550,15 @@ public class Controller {
 
                         sendDstoreMessage(port, request.toString());
 
-                        try {
-                            waitForDstoreMessage(port, Protocol.REBALANCE_COMPLETE_TOKEN);
+                        String message = waitForDstoreMessage(port);
+
+                        if (message != null && message.equals(Protocol.REBALANCE_COMPLETE_TOKEN)) {
                             dstorePorts.get(port).setFileCount(currents.get(port).size());
-                        } catch (TimeoutException e) {
-                            log("Rebalance completion timeout on " + port);
+                            log("Rebalance confirmation received from port " + port);
+                        } else if (message == null) {
+                            error("Rebalance completion timeout on " + port);
+                        } else {
+                            error("Expected 'REBALANCE_COMPLETE' from port " + port + ", received '" + message + "'");
                         }
                     }
 
