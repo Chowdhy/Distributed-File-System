@@ -2,19 +2,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DstoreInfo implements Comparable<DstoreInfo> {
     int port;
     Socket socket;
     PrintWriter out;
     BufferedReader in;
-    int fileCount;
-    List<DstoreMessageListener> listeners;
+    AtomicInteger fileCount;
 
     @Override
     public int compareTo(DstoreInfo dstoreInfo) {
@@ -28,34 +23,7 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
         out = new PrintWriter(socket.getOutputStream(), true);
         this.in = in;
 
-        listeners = new ArrayList<>();
-
-        fileCount = 0;
-
-        /*
-        new Thread(() -> {
-            try {
-                listenToMessages();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).start();*/
-    }
-
-    private void listenToMessages() throws IOException {
-        try {
-            String message;
-            while ((message = in.readLine()) != null) {
-                for (var listener : List.copyOf(listeners)) {
-                    listener.messageReceived(message);
-                    System.out.println("RECEIVED: " + message);
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } finally {
-            if (socket != null) socket.close();
-        }
+        fileCount = new AtomicInteger(0);
     }
 
     public void writeLine(String message) {
@@ -63,11 +31,18 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
     }
 
     public int getFileCount() {
-        return fileCount;
+        return fileCount.get();
     }
 
     public void setFileCount(int fileCount) {
-        this.fileCount = fileCount;
+        this.fileCount.set(fileCount);
+    }
+    public void incrementFileCount() {
+        this.fileCount.incrementAndGet();
+    }
+
+    public void decrementFileCount() {
+        this.fileCount.decrementAndGet();
     }
 
     public int getPort() {
@@ -78,17 +53,6 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
         return socket;
     }
 
-    private void addListener(DstoreMessageListener listener) {
-        listeners.add(listener);
-    }
-
-    private void removeListener(DstoreMessageListener listener) {
-        listeners.remove(listener);
-    }
-    private boolean hasListener(DstoreMessageListener listener) {
-        return listeners.contains(listener);
-    }
-
     public String waitForMessage(int timeout) {
         try {
             socket.setSoTimeout(timeout);
@@ -96,38 +60,5 @@ public class DstoreInfo implements Comparable<DstoreInfo> {
         } catch (IOException e) {
             return null;
         }
-    }
-
-    public String waitForMessage(Set<String> desiredMessages, int timeout) throws TimeoutException {
-        AtomicReference<String> receivedMessage = new AtomicReference<>();
-
-        DstoreMessageListener listener = (message -> {
-            if (desiredMessages.contains(message.split(" ")[0])) {
-                receivedMessage.set(message);
-            }
-        });
-
-        Future<String> stringFuture = Executors.newSingleThreadScheduledExecutor().submit(() -> {
-            addListener(listener);
-            while (receivedMessage.get() == null);
-            removeListener(listener);
-            return receivedMessage.get();
-        });
-
-        try {
-            return stringFuture.get(timeout, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            throw new TimeoutException(e.toString());
-        } finally {
-            if (hasListener(listener)) removeListener(listener);
-        }
-    }
-
-    public boolean isAlive() {
-        return !socket.isClosed();
-    }
-
-    interface DstoreMessageListener {
-        void messageReceived(String message);
     }
 }

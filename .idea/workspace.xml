@@ -5,10 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="72d5c99c-1a8e-4cbc-96de-5f47dca747d1" name="Changes" comment="Concurrency improvements">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Controller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Controller.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Dstore.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/Dstore.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/DstoreInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/DstoreInfo.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/FileInfo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/FileInfo.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,6 +51,9 @@
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
     &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Project&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
@@ -111,7 +115,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="jdk-21.0.2-openjdk-21.0.2-4caba194b151-322ed176" />
+        <option value="jdk-21.0.2-openjdk-21.0.2-4caba194b151-4f524021" />
       </set>
     </attachedChunks>
   </component>
@@ -130,6 +134,9 @@
       <workItem from="1713006114919" duration="44910000" />
       <workItem from="1714587228678" duration="3000" />
       <workItem from="1714859353862" duration="17058000" />
+      <workItem from="1715078064859" duration="2220000" />
+      <workItem from="1715170005815" duration="2894000" />
+      <workItem from="1715433812045" duration="3070000" />
     </task>
     <task id="LOCAL-00001" summary="Initial upload">
       <option name="closed" value="true" />

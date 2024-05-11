@@ -1,6 +1,8 @@
 import java.io.*;
 import java.net.*;
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class Dstore {
     final int port;
@@ -139,7 +141,7 @@ public class Dstore {
         sendControllerMessage(fileNameList.toString());
     }
 
-    private void sendFile(String fileName, int port, int fileSize, byte[] content) {
+    private void sendFile(String fileName, int port, int fileSize, byte[] content) throws SocketTimeoutException {
         try {
             InetAddress address = InetAddress.getLocalHost();
             try (Socket socket = new Socket(address, port)) {
@@ -154,18 +156,28 @@ public class Dstore {
 
                 socket.setSoTimeout(timeout);
 
-                String ack = textReader.readLine();
-                if (ack.equals(Protocol.ACK_TOKEN)) {
-                    dataWriter.write(content);
+                try {
+                    String ack = textReader.readLine();
+                    if (ack.equals(Protocol.ACK_TOKEN)) {
+                        dataWriter.write(content);
+                    }
+                } catch (IOException e) {
+                    throw new SocketTimeoutException();
                 }
             }
+        } catch (SocketTimeoutException e) {
+            throw e;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private byte[] readFile(String fileName) {
+    private byte[] readFile(String fileName) throws FileNotFoundException {
         File file = new File(fileFolder.getPath() + File.separator + fileName);
+
+        if (!file.exists()) {
+            throw new FileNotFoundException();
+        }
 
         try (FileInputStream fileInputStream = new FileInputStream(file)) {
             return fileInputStream.readAllBytes();
@@ -175,6 +187,8 @@ public class Dstore {
     }
 
     private void rebalance(String[] args) {
+        boolean success = true;
+
         int currentIndex = 0;
 
         int transferCount = Integer.parseInt(args[currentIndex]);
@@ -183,16 +197,41 @@ public class Dstore {
             int portCountIndex = ++currentIndex;
 
             String fileName = args[fileNameIndex];
-            byte[] fileContent = readFile(fileName);
-            int fileSize = fileContent.length;
+            try {
+                byte[] fileContent = readFile(fileName);
+                int fileSize = fileContent.length;
 
-            int portCount = Integer.parseInt(args[portCountIndex]);
+                int portCount = Integer.parseInt(args[portCountIndex]);
 
-            for (int i_ = 0; i_ < portCount; i_++) {
-                int portIndex = ++currentIndex;
-                int port = Integer.parseInt(args[portIndex]);
+                CountDownLatch latch = new CountDownLatch(portCount);
 
-                sendFile(fileName, port, fileSize, fileContent);
+                for (int i_ = 0; i_ < portCount; i_++) {
+                    int portIndex = ++currentIndex;
+                    int port = Integer.parseInt(args[portIndex]);
+
+                    new Thread(() -> {
+                        try {
+                            sendFile(fileName, port, fileSize, fileContent);
+                            latch.countDown();
+                        } catch (SocketTimeoutException e) {
+                            error("Rebalance ack not received from port " + port);
+                        }
+                    });
+                }
+
+                try {
+                    if (latch.await(timeout, TimeUnit.MILLISECONDS)) {
+                        log("ALL REBALANCE ACKS RECEIVED");
+                    } else {
+                        error("NOT ALL REBALANCE ACKS RECEIVED");
+                        success = false;
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            } catch (FileNotFoundException e) {
+                error("Requested file '" + fileName + "' does not exist");
+                success = false;
             }
         }
 
@@ -203,6 +242,8 @@ public class Dstore {
             String fileToRemove = args[removeIndex];
             deleteFile(fileToRemove);
         }
+
+        if (success) sendControllerMessage(Protocol.REBALANCE_COMPLETE_TOKEN);
     }
 
     public static void main(String[] args) {
@@ -240,8 +281,12 @@ public class Dstore {
                             break;
 
                         case Protocol.LOAD_DATA_TOKEN:
-                            byte[] fileBytes = readFile(cmd[1]);
-                            dataWriter.write(fileBytes);
+                            try {
+                                byte[] fileBytes = readFile(cmd[1]);
+                                dataWriter.write(fileBytes);
+                            } catch (FileNotFoundException e) {
+                                socket.close();
+                            }
                             break;
 
                         case Protocol.REMOVE_TOKEN:
@@ -254,8 +299,6 @@ public class Dstore {
 
                         case Protocol.REBALANCE_TOKEN:
                             rebalance(Arrays.copyOfRange(cmd, 1, cmd.length));
-                            textWriter.println(Protocol.REBALANCE_COMPLETE_TOKEN);
-                            log("Client message sent: " + Protocol.REBALANCE_COMPLETE_TOKEN);
                             break;
 
                         case Protocol.REBALANCE_STORE_TOKEN:
